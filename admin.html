@@ -565,13 +565,15 @@ function showPanel(id) {
 function onUnitChange() {
   currentUnit = document.getElementById('unitSelect').value;
   // ── Login simples ─────────────────────────────────────
-const ADMIN_PASSWORD = 'tabuas2024'; // 🔧 troque pela senha que quiser
+// ── Login ─────────────────────────────────────────────
+const ADMIN_PASSWORD = 'tabuas2024'; // 🔧 troque pela senha
 
 function doLogin() {
   const val = document.getElementById('loginInput').value;
   if (val === ADMIN_PASSWORD) {
     document.getElementById('loginScreen').style.display = 'none';
     sessionStorage.setItem('adminAuth', '1');
+    loadAll(); // carrega o painel após login
   } else {
     document.getElementById('loginError').style.display = 'block';
     document.getElementById('loginInput').value = '';
@@ -579,19 +581,15 @@ function doLogin() {
   }
 }
 
-// Verifica se já autenticou nesta sessão
-if (sessionStorage.getItem('adminAuth') !== '1') {
-  // Bloqueia o loadAll até fazer login
-} else {
-  document.getElementById('loginScreen').style.display = 'none';
-}
-  if (sessionStorage.getItem('adminAuth') === '1') {
+// ── Init ─────────────────────────────────────────────
+document.getElementById('blkDate').min = toISO(new Date());
+
+// Verifica sessão ativa
+if (sessionStorage.getItem('adminAuth') === '1') {
   document.getElementById('loginScreen').style.display = 'none';
   loadAll();
-} else {
-  // aguarda o login — loadAll() é chamado pelo doLogin()
 }
-}
+// Se não autenticado, aguarda o doLogin() chamar loadAll()}
 
 // ══════════════════════════════════════════════════════
 //  LOAD ALL DATA
