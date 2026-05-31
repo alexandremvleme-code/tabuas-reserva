@@ -817,24 +817,30 @@ async function loadBlocks() {
   renderBlocks(window._blocks);
 }
 
-function renderBlocks(blocks) {
+ffunction renderBlocks(blocks) {
   const el = document.getElementById('blocksList');
   if (!blocks || blocks.length === 0) {
     el.innerHTML = `<div class="empty-state"><span class="icon">✅</span><p>Nenhum bloqueio ativo</p></div>`;
     return;
   }
-  el.innerHTML = blocks.map(b => `
+  el.innerHTML = blocks.map(b => {
+    // Separa tipo e motivo do campo reason
+    const parts   = (b.reason || '').split('|');
+    const tipo    = parts.length > 1 ? parts[0].trim() : 'sem_reservas';
+    const motivo  = parts.length > 1 ? parts[1].trim() : b.reason;
+    const tipoLabel = tipo === 'casa_fechada' ? '🔒 Casa fechada' : '⚠️ Sem reservas';
+
+    return `
     <div class="block-item">
       <div class="block-info">
-        <div class="block-date">🔒 ${b.date} ${b.period ? '· ' + b.period : '· Dia todo'}</div>
-        <div class="block-detail">${b.unit}${b.spotId ? ' · ' + b.spotId : ''}${b.reason ? ' — ' + b.reason : ''}</div>
+        <div class="block-date">${tipoLabel} · ${b.date} ${b.period ? '· ' + b.period : '· Dia todo'}</div>
+        <div class="block-detail">${b.unit}${b.spotId ? ' · ' + b.spotId : ''}${motivo ? ' — ' + motivo : ''}</div>
       </div>
       <button class="btn btn-danger" style="font-size:12px;padding:6px 14px"
         onclick="removeBlock('${b.unit}', '${b.date}', '${b.period}')">Remover</button>
     </div>
-  `).join('');
+  `}).join('');
 }
-
 async function addBlock() {
   const unit   = document.getElementById('blkUnit').value;
   const date   = document.getElementById('blkDate').value;
