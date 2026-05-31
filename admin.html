@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tábuas Cervejaria — Painel Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & tokens ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0b0907;
+  --surface:   #131009;
+  --card:      #191410;
+  --border:    rgba(212,136,58,.18);
+  --border-hi: rgba(212,136,58,.45);
+  --gold:      #D4883A;
+  --gold-lt:   #F0A94E;
+  --cream:     #ede5d4;
+  --muted:     #7a6e60;
+  --danger:    #c95555;
+  --success:   #5caf82;
+  --warn:      #d4a03a;
+  --radius:    6px;
+  --mono:      'IBM Plex Mono', monospace;
+  --serif:     'Playfair Display', Georgia, serif;
+  --sans:      'DM Sans', sans-serif;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--cream); font-family: var(--sans); font-size: 14px; }
+
+/* ── Layout ─────────────────────────────────────────────────── */
+.app { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; min-height: 100vh; }
+.topbar  { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between;
+           padding: 0 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.sidebar { padding: 20px 12px; border-right: 1px solid var(--border); background: var(--surface);
+           display: flex; flex-direction: column; gap: 4px; }
+.main    { padding: 28px; overflow-y: auto; }
+
+/* ── Topbar ─────────────────────────────────────────────────── */
+.topbar-brand { font-family: var(--serif); font-size: 18px; color: var(--gold-lt); letter-spacing: .04em; }
+.topbar-brand span { font-size: 11px; letter-spacing: .25em; text-transform: uppercase;
+                     color: var(--muted); display: block; font-family: var(--sans); }
+.unit-selector select {
+  background: var(--card); border: 1px solid var(--border); color: var(--cream);
+  padding: 7px 14px; border-radius: var(--radius); font-family: var(--sans); font-size: 13px;
+  cursor: pointer; outline: none;
+}
+.unit-selector select:focus { border-color: var(--gold); }
+
+/* ── Sidebar nav ─────────────────────────────────────────────── */
+.nav-label { font-size: 9px; letter-spacing: .25em; text-transform: uppercase;
+             color: var(--muted); padding: 12px 10px 4px; }
+.nav-btn {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius);
+  cursor: pointer; font-size: 13px; color: var(--muted); border: none; background: none;
+  width: 100%; text-align: left; transition: all .18s;
+}
+.nav-btn:hover   { background: rgba(212,136,58,.07); color: var(--cream); }
+.nav-btn.active  { background: rgba(212,136,58,.13); color: var(--gold-lt); }
+.nav-btn .icon   { font-size: 16px; width: 20px; text-align: center; }
+
+/* ── Panels ─────────────────────────────────────────────────── */
+.panel { display: none; animation: fadeIn .2s ease; }
+.panel.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── Section title ───────────────────────────────────────────── */
+.section-head { margin-bottom: 22px; }
+.section-head h2 { font-family: var(--serif); font-size: 22px; font-weight: 400; color: var(--cream); }
+.section-head p  { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.divider { height: 1px; background: var(--border); margin: 22px 0; }
+
+/* ── Stats cards ─────────────────────────────────────────────── */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.stat-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px 20px;
+}
+.stat-card .label { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.stat-card .value { font-family: var(--serif); font-size: 32px; color: var(--gold-lt);
+                    line-height: 1.1; margin: 6px 0 2px; }
+.stat-card .sub   { font-size: 11px; color: var(--muted); }
+.stat-card.warn   { border-color: rgba(212,160,58,.4); }
+.stat-card.warn .value { color: var(--warn); }
+
+/* ── Reservas table ──────────────────────────────────────────── */
+.table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.table-toolbar {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.table-toolbar input, .table-toolbar select {
+  background: var(--surface); border: 1px solid var(--border); color: var(--cream);
+  padding: 6px 12px; border-radius: var(--radius); font-family: var(--sans); font-size: 12px;
+  outline: none; transition: border-color .15s;
+}
+.table-toolbar input:focus, .table-toolbar select:focus { border-color: var(--gold); }
+.table-toolbar input { flex: 1; }
+
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  padding: 10px 14px; text-align: left; font-size: 9px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid rgba(255,255,255,.04); transition: background .12s; }
+tbody tr:hover { background: rgba(212,136,58,.04); }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
+tbody td.mono { font-family: var(--mono); font-size: 12px; color: var(--gold-lt); }
+
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px;
+  letter-spacing: .06em; font-weight: 500;
+}
+.badge-confirmed { background: rgba(92,175,130,.15); color: var(--success); }
+.badge-cancelled { background: rgba(201,85,85,.15);  color: var(--danger); }
+.badge-period    { background: rgba(212,136,58,.12); color: var(--gold); font-family: var(--mono); }
+
+.btn-icon {
+  background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px;
+  padding: 4px 8px; cursor: pointer; font-size: 13px; transition: all .15s;
+}
+.btn-icon:hover { border-color: var(--danger); color: var(--danger); background: rgba(201,85,85,.08); }
+
+/* ── Calendário ──────────────────────────────────────────────── */
+.cal-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.cal-nav { display: flex; gap: 6px; }
+.cal-nav button {
+  background: var(--card); border: 1px solid var(--border); color: var(--cream);
+  padding: 6px 12px; border-radius: var(--radius); cursor: pointer; font-size: 14px;
+  transition: border-color .15s;
+}
+.cal-nav button:hover { border-color: var(--gold); }
+.cal-month { font-family: var(--serif); font-size: 18px; font-weight: 400; color: var(--cream); }
+
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
+            background: var(--border); border: 1px solid var(--border); border-radius: var(--radius);
+            overflow: hidden; }
+.cal-dow {
+  background: var(--surface); padding: 8px; text-align: center; font-size: 10px;
+  letter-spacing: .15em; text-transform: uppercase; color: var(--muted);
+}
+.cal-day {
+  background: var(--card); padding: 10px; min-height: 90px; cursor: pointer;
+  transition: background .12s; position: relative; overflow: hidden;
+}
+.cal-day:hover { background: rgba(212,136,58,.07); }
+.cal-day.today { background: rgba(212,136,58,.1); }
+.cal-day.today .cal-day-num { color: var(--gold-lt); font-weight: 600; }
+.cal-day.other-month .cal-day-num { color: var(--muted); }
+.cal-day.blocked { background: rgba(201,85,85,.08); }
+.cal-day-num { font-size: 13px; color: var(--cream); margin-bottom: 6px; font-family: var(--mono); }
+.cal-res-pill {
+  font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-bottom: 2px;
+  background: rgba(212,136,58,.18); color: var(--gold-lt); display: block; line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-res-pill.blocked-pill { background: rgba(201,85,85,.18); color: var(--danger); }
+
+/* ── Bloqueios ───────────────────────────────────────────────── */
+.block-form {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 22px; margin-bottom: 20px;
+}
+.block-form h3 { font-family: var(--serif); font-size: 16px; font-weight: 400;
+                 color: var(--cream); margin-bottom: 16px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; align-items: end; }
+.form-group label { display: block; font-size: 10px; letter-spacing: .15em; text-transform: uppercase;
+                    color: var(--muted); margin-bottom: 5px; }
+.form-group input, .form-group select {
+  width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--cream);
+  padding: 8px 12px; border-radius: var(--radius); font-family: var(--sans); font-size: 13px;
+  outline: none; transition: border-color .15s;
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--gold); }
+
+.btn { padding: 9px 20px; border-radius: var(--radius); font-family: var(--sans); font-size: 13px;
+       font-weight: 500; cursor: pointer; border: none; transition: all .15s; }
+.btn-primary { background: var(--gold); color: #0b0907; }
+.btn-primary:hover { background: var(--gold-lt); }
+.btn-danger  { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+.btn-danger:hover  { background: rgba(201,85,85,.12); }
+
+/* ── Blocks list ─────────────────────────────────────────────── */
+.block-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: rgba(201,85,85,.06); border: 1px solid rgba(201,85,85,.2);
+  border-radius: var(--radius); margin-bottom: 8px;
+}
+.block-item .block-info { flex: 1; }
+.block-item .block-date { font-family: var(--mono); font-size: 13px; color: var(--gold-lt); }
+.block-item .block-detail { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── Loading & toast ─────────────────────────────────────────── */
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(11,9,7,.85); display: flex; align-items: center;
+  justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.loading-overlay.show { opacity: 1; pointer-events: all; }
+.spinner { width: 36px; height: 36px; border: 2px solid var(--border);
+           border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: var(--radius);
+  font-size: 13px; font-weight: 500; z-index: 2000; opacity: 0; transform: translateY(8px);
+  transition: all .22s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: none; }
+.toast.success { background: var(--success); color: #0b0907; }
+.toast.error   { background: var(--danger);  color: #fff; }
+
+/* ── Modal ───────────────────────────────────────────────────── */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(11,9,7,.88); z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.modal-bg.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 28px; width: 420px; max-width: 95vw;
+  transform: translateY(10px); transition: transform .2s;
+}
+.modal-bg.open .modal { transform: none; }
+.modal h3 { font-family: var(--serif); font-size: 18px; font-weight: 400; margin-bottom: 16px; }
+.modal label { display: block; font-size: 10px; letter-spacing: .15em; text-transform: uppercase;
+               color: var(--muted); margin: 12px 0 5px; }
+.modal input, .modal textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--cream);
+  padding: 9px 12px; border-radius: var(--radius); font-family: var(--sans); font-size: 13px;
+  outline: none; transition: border-color .15s;
+}
+.modal input:focus, .modal textarea:focus { border-color: var(--gold); }
+.modal textarea { resize: vertical; min-height: 70px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+.btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+.btn-ghost:hover { border-color: var(--cream); color: var(--cream); }
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty-state .icon { font-size: 32px; display: block; margin-bottom: 10px; }
+.empty-state p { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- ── Loading overlay ──────────────────────────────────────── -->
+<div class="loading-overlay" id="loading"><div class="spinner"></div></div>
+
+<!-- ── Toast ────────────────────────────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<!-- ── Cancel modal ─────────────────────────────────────────── -->
+<div class="modal-bg" id="cancelModal">
+  <div class="modal">
+    <h3>Cancelar Reserva</h3>
+    <p style="font-size:12px;color:var(--muted)">Código: <span id="cancelCode" style="font-family:var(--mono);color:var(--gold-lt)"></span></p>
+    <label>Motivo (opcional)</label>
+    <textarea id="cancelReason" placeholder="Ex: solicitação do cliente, evento cancelado..."></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('cancelModal')">Voltar</button>
+      <button class="btn btn-danger" onclick="confirmCancel()">Confirmar cancelamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Day detail modal ──────────────────────────────────────── -->
+<div class="modal-bg" id="dayModal">
+  <div class="modal" style="width:520px">
+    <h3 id="dayModalTitle"></h3>
+    <div id="dayModalContent" style="margin-top:12px;max-height:60vh;overflow-y:auto"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('dayModal')">Fechar</button>
+      <button class="btn btn-danger" id="dayBlockBtn" onclick="blockSelectedDay()">Bloquear este dia</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ APP ════════════════ -->
+<div class="app">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      Tábuas Cervejaria
+      <span>painel de reservas</span>
+    </div>
+    <div class="unit-selector">
+      <select id="unitSelect" onchange="onUnitChange()">
+        <option value="">Todas as unidades</option>
+        <option value="BG">Barão Geraldo</option>
+        <option value="CB">Cambuí</option>
+        <option value="VL">Valinhos</option>
+        <option value="CX">Caixote / Lastro</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-label">Visão geral</div>
+    <button class="nav-btn active" onclick="showPanel('dashboard')" id="nav-dashboard">
+      <span class="icon">📊</span> Dashboard
+    </button>
+    <button class="nav-btn" onclick="showPanel('calendar')" id="nav-calendar">
+      <span class="icon">📅</span> Calendário
+    </button>
+    <div class="nav-label">Gestão</div>
+    <button class="nav-btn" onclick="showPanel('reservations')" id="nav-reservations">
+      <span class="icon">📋</span> Reservas
+    </button>
+    <button class="nav-btn" onclick="showPanel('blocks')" id="nav-blocks">
+      <span class="icon">🔒</span> Bloqueios
+    </button>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ── Dashboard ── -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="section-head">
+        <h2>Dashboard</h2>
+        <p id="dashSubtitle">Visão geral das reservas</p>
+      </div>
+
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+          <div class="label">Hoje</div>
+          <div class="value" id="stat-today">—</div>
+          <div class="sub" id="stat-today-sub">reservas</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="label">Amanhã</div>
+          <div class="value" id="stat-tomorrow">—</div>
+          <div class="sub" id="stat-tomorrow-sub">reservas</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Próximos 7 dias</div>
+          <div class="value" id="stat-week">—</div>
+          <div class="sub" id="stat-week-sub">pessoas</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Próximos 30 dias</div>
+          <div class="value" id="stat-month">—</div>
+          <div class="sub" id="stat-month-sub">pessoas</div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2 style="font-size:16px">Reservas de hoje</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Código</th><th>Unidade</th><th>Área</th>
+            <th>Período</th><th>Chegada</th><th>Pessoas</th><th>Nome</th><th>Status</th>
+          </tr></thead>
+          <tbody id="todayTable"><tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Calendário ── -->
+    <div class="panel" id="panel-calendar">
+      <div class="section-head">
+        <h2>Calendário</h2>
+        <p>Clique em um dia para ver detalhes ou bloquear reservas</p>
+      </div>
+      <div class="cal-header">
+        <div class="cal-nav">
+          <button onclick="calPrev()">‹</button>
+          <button onclick="calNext()">›</button>
+        </div>
+        <div class="cal-month" id="calMonth"></div>
+        <button class="btn btn-ghost" style="margin-left:auto;font-size:12px" onclick="calGoToday()">Hoje</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <!-- ── Reservas ── -->
+    <div class="panel" id="panel-reservations">
+      <div class="section-head">
+        <h2>Reservas — Próximos 30 dias</h2>
+        <p>Gerencie e cancele reservas por unidade</p>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input type="text" id="searchInput" placeholder="Buscar por nome, código…" oninput="filterTable()">
+          <select id="periodFilter" onchange="filterTable()">
+            <option value="">Todos os períodos</option>
+            <option value="tarde">Tarde</option>
+            <option value="noite">Noite</option>
+          </select>
+          <select id="statusFilter" onchange="filterTable()">
+            <option value="">Todos os status</option>
+            <option value="Confirmada">Confirmada</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Código</th><th>Data</th><th>Chegada</th>
+            <th>Unidade</th><th>Área</th><th>Período</th>
+            <th>Pessoas</th><th>Nome</th><th>WhatsApp</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="resTable"><tr><td colspan="11" style="text-align:center;padding:28px;color:var(--muted)">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Bloqueios ── -->
+    <div class="panel" id="panel-blocks">
+      <div class="section-head">
+        <h2>Bloquear Datas</h2>
+        <p>Impede novas reservas — zera a capacidade para o período selecionado</p>
+      </div>
+
+      <div class="block-form">
+        <h3>Novo bloqueio</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Unidade *</label>
+            <select id="blkUnit">
+              <option value="BG">Barão Geraldo</option>
+              <option value="CB">Cambuí</option>
+              <option value="VL">Valinhos</option>
+              <option value="CX">Caixote / Lastro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Data *</label>
+            <input type="date" id="blkDate">
+          </div>
+          <div class="form-group">
+            <label>Período</label>
+            <select id="blkPeriod">
+              <option value="">Dia todo</option>
+              <option value="tarde">Tarde</option>
+              <option value="noite">Noite</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Spot (opcional)</label>
+            <select id="blkSpot">
+              <option value="">Toda a unidade</option>
+              <option value="bg1">bg1 — BG Frente</option>
+              <option value="bg2">bg2 — BG Salão Interno</option>
+              <option value="bg3">bg3 — BG Jardim</option>
+              <option value="bg4">bg4 — BG Salão Interno 2</option>
+              <option value="vl1">vl1 — VL Área Externa</option>
+              <option value="vl2">vl2 — VL Área Interna</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid" style="margin-top:10px;grid-template-columns:1fr auto">
+          <div class="form-group">
+            <label>Motivo</label>
+            <input type="text" id="blkReason" placeholder="Ex: evento privado, feriado, manutenção…">
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" onclick="addBlock()">Bloquear data</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-head" style="margin-bottom:12px">
+        <h2 style="font-size:16px">Bloqueios ativos</h2>
+      </div>
+      <div id="blocksList"><div style="color:var(--muted);font-size:13px">Carregando…</div></div>
+    </div>
+
+  </main>
+</div><!-- /.app -->
+
+<script>
+// ══════════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════════
+
+// 🔧 ALTERE AQUI para a URL do seu Google Apps Script (doGet)
+const API_URL = 'reservas.cervejariatabuas.com.br'; 
+
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+let currentUnit       = '';
+let allReservations   = [];
+let statsData         = {};
+let calYear           = new Date().getFullYear();
+let calMonth          = new Date().getMonth();
+let pendingCancelCode = '';
+let selectedDay       = null;
+
+// ══════════════════════════════════════════════════════
+//  API
+// ══════════════════════════════════════════════════════
+async function api(params) {
+  const url = new URL(API_URL);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  try {
+    const r = await fetch(url);
+    return await r.json();
+  } catch(e) {
+    console.error('API error', e);
+    return { error: 'Falha na comunicação com o servidor.' };
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  document.getElementById('nav-' + id).classList.add('active');
+  if (id === 'calendar')     renderCalendar();
+  if (id === 'reservations') renderResTable();
+  if (id === 'blocks')       loadBlocks();
+}
+
+function onUnitChange() {
+  currentUnit = document.getElementById('unitSelect').value;
+  loadAll();
+}
+
+// ══════════════════════════════════════════════════════
+//  LOAD ALL DATA
+// ══════════════════════════════════════════════════════
+async function loadAll() {
+  setLoading(true);
+
+  // Próximos 30 dias
+  const today  = new Date();
+  const future = new Date(); future.setDate(future.getDate() + 30);
+  const from   = toISO(today);
+  const to     = toISO(future);
+
+  const [resResult, statsResult] = await Promise.all([
+    api({ action: 'adminGetReservations', unit: currentUnit, from, to }),
+    api({ action: 'adminGetStats',        unit: currentUnit }),
+  ]);
+
+  if (resResult.reservations) {
+    allReservations = resResult.reservations;
+  }
+  if (statsResult.stats) {
+    statsData = statsResult.stats;
+  }
+
+  renderDashboard();
+  setLoading(false);
+}
+
+// ══════════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════════
+function renderDashboard() {
+  const s = statsData;
+  if (!s || !s.today) return;
+
+  const unitLabel = currentUnit
+    ? { BG:'Barão Geraldo', CB:'Cambuí', VL:'Valinhos', CX:'Caixote' }[currentUnit]
+    : 'Todas as unidades';
+  document.getElementById('dashSubtitle').textContent = unitLabel;
+
+  document.getElementById('stat-today').textContent     = s.today.count;
+  document.getElementById('stat-today-sub').textContent = `${s.today.guests} pessoas`;
+  document.getElementById('stat-tomorrow').textContent  = s.tomorrow.count;
+  document.getElementById('stat-tomorrow-sub').textContent = `${s.tomorrow.guests} pessoas`;
+  document.getElementById('stat-week').textContent      = s.week.guests;
+  document.getElementById('stat-week-sub').textContent  = `em ${s.week.count} reservas`;
+  document.getElementById('stat-month').textContent     = s.month.guests;
+  document.getElementById('stat-month-sub').textContent = `em ${s.month.count} reservas`;
+
+  // Tabela de hoje
+  const todayStr = formatDatePtFromDate(new Date());
+  const todayRes = allReservations.filter(r => r.date === todayStr);
+  const tbody    = document.getElementById('todayTable');
+
+  if (todayRes.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><span class="icon">🍺</span><p>Nenhuma reserva para hoje</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = todayRes.map(r => `
+    <tr>
+      <td class="mono">${r.code}</td>
+      <td>${r.unit}</td>
+      <td>${r.area || '—'}</td>
+      <td><span class="badge badge-period">${r.period || '—'}</span></td>
+      <td style="font-family:var(--mono)">${r.time}</td>
+      <td style="font-weight:500;color:var(--gold-lt)">${r.guests}</td>
+      <td>${r.name}</td>
+      <td><span class="badge ${r.status === 'Cancelada' ? 'badge-cancelled' : 'badge-confirmed'}">${r.status}</span></td>
+    </tr>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  RESERVATIONS TABLE
+// ══════════════════════════════════════════════════════
+function renderResTable(data) {
+  const rows = data || allReservations;
+  const tbody = document.getElementById('resTable');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><span class="icon">📋</span><p>Nenhuma reserva encontrada</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr data-code="${r.code}" data-name="${r.name.toLowerCase()}" data-period="${r.period.toLowerCase()}" data-status="${r.status}">
+      <td class="mono">${r.code}</td>
+      <td style="font-family:var(--mono);font-size:12px">${r.date}</td>
+      <td style="font-family:var(--mono)">${r.time}</td>
+      <td>${r.unit}</td>
+      <td style="color:var(--muted);font-size:12px">${r.area || '—'}</td>
+      <td><span class="badge badge-period">${r.period || '—'}</span></td>
+      <td style="font-weight:500;color:var(--gold-lt)">${r.guests}</td>
+      <td>${r.name}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${r.phone}</td>
+      <td><span class="badge ${r.status === 'Cancelada' ? 'badge-cancelled' : 'badge-confirmed'}">${r.status}</span></td>
+      <td>
+        ${r.status !== 'Cancelada'
+          ? `<button class="btn-icon" title="Cancelar" onclick="openCancelModal('${r.code}')">✕</button>`
+          : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const period = document.getElementById('periodFilter').value.toLowerCase();
+  const status = document.getElementById('statusFilter').value;
+
+  const filtered = allReservations.filter(r => {
+    const matchSearch = !search || r.code.toLowerCase().includes(search) || r.name.toLowerCase().includes(search) || r.phone.includes(search);
+    const matchPeriod = !period || r.period.toLowerCase().includes(period);
+    const matchStatus = !status || r.status === status;
+    return matchSearch && matchPeriod && matchStatus;
+  });
+  renderResTable(filtered);
+}
+
+// ══════════════════════════════════════════════════════
+//  CANCEL
+// ══════════════════════════════════════════════════════
+function openCancelModal(code) {
+  pendingCancelCode = code;
+  document.getElementById('cancelCode').textContent = code;
+  document.getElementById('cancelReason').value = '';
+  document.getElementById('cancelModal').classList.add('open');
+}
+
+async function confirmCancel() {
+  const reason = document.getElementById('cancelReason').value.trim();
+  closeModal('cancelModal');
+  setLoading(true);
+  const r = await api({ action: 'adminCancelReservation', code: pendingCancelCode, reason });
+  setLoading(false);
+  if (r.status === 'ok') {
+    showToast('Reserva cancelada com sucesso', 'success');
+    loadAll();
+  } else {
+    showToast(r.message || 'Erro ao cancelar', 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CALENDAR
+// ══════════════════════════════════════════════════════
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DAYS_PT   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+function renderCalendar() {
+  document.getElementById('calMonth').textContent = `${MONTHS_PT[calMonth]} ${calYear}`;
+  const grid = document.getElementById('calGrid');
+
+  // Header dias da semana
+  const headers = DAYS_PT.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  // Primeiro dia do mês
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  const today = new Date();
+  const todayKey = formatDatePtFromDate(today);
+
+  // Bloquear dias (do cache de reservas)
+  const byDate = (statsData && statsData.byDate) ? statsData.byDate : {};
+
+  // Bloqueios ativos
+  const blocks = window._blocks || [];
+
+  let cells = '';
+  // Cells de mês anterior
+  for (let i = 0; i < firstDay; i++) {
+    const prevMonth = calMonth === 0 ? 11 : calMonth - 1;
+    const prevYear  = calMonth === 0 ? calYear - 1 : calYear;
+    const prevDays  = new Date(prevYear, prevMonth + 1, 0).getDate();
+    const d = prevDays - firstDay + i + 1;
+    cells += `<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateObj = new Date(calYear, calMonth, d);
+    const dateKey = formatDatePtFromDate(dateObj);
+    const isToday = dateKey === todayKey;
+    const isPast  = dateObj < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // Reservas do dia
+    const dayData = byDate[dateKey];
+    let pills = '';
+    if (dayData) {
+      for (const [period, guests] of Object.entries(dayData)) {
+        pills += `<span class="cal-res-pill">${period}: ${guests} pax</span>`;
+      }
+    }
+
+    // Bloqueios
+    const isBlocked = blocks.some(b => {
+      const bDateKey = b.date; // já em dd/mm/aaaa
+      return bDateKey === dateKey && (!currentUnit || b.unit.includes(currentUnit) || Object.values({BG:'Barão Geraldo',CB:'Cambuí',VL:'Valinhos',CX:'Caixote / Lastro'}).some(n => b.unit === n && currentUnit === Object.keys({BG:'Barão Geraldo',CB:'Cambuí',VL:'Valinhos',CX:'Caixote / Lastro'}).find(k => ({BG:'Barão Geraldo',CB:'Cambuí',VL:'Valinhos',CX:'Caixote / Lastro'})[k] === b.unit)));
+    });
+    if (isBlocked) pills += `<span class="cal-res-pill blocked-pill">🔒 Bloqueado</span>`;
+
+    const cls = ['cal-day', isToday ? 'today' : '', isBlocked ? 'blocked' : '', isPast ? 'past' : ''].filter(Boolean).join(' ');
+    const isoDate = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+    cells += `<div class="${cls}" onclick="openDayModal('${isoDate}', '${dateKey}')">
+      <div class="cal-day-num">${d}</div>
+      ${pills}
+    </div>`;
+  }
+
+  // Fill remaining
+  const totalCells = firstDay + daysInMonth;
+  const remaining  = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (let i = 1; i <= remaining; i++) {
+    cells += `<div class="cal-day other-month"><div class="cal-day-num">${i}</div></div>`;
+  }
+
+  grid.innerHTML = headers + cells;
+}
+
+function calPrev() { if (calMonth === 0) { calMonth = 11; calYear--; } else calMonth--; renderCalendar(); }
+function calNext() { if (calMonth === 11) { calMonth = 0; calYear++; } else calMonth++; renderCalendar(); }
+function calGoToday() { calYear = new Date().getFullYear(); calMonth = new Date().getMonth(); renderCalendar(); }
+
+function openDayModal(isoDate, datePt) {
+  selectedDay = { isoDate, datePt };
+  document.getElementById('dayModalTitle').textContent = `Reservas — ${datePt}`;
+
+  const dayRes = allReservations.filter(r => r.date === datePt);
+  const content = document.getElementById('dayModalContent');
+
+  if (dayRes.length === 0) {
+    content.innerHTML = `<p style="color:var(--muted);font-size:13px">Nenhuma reserva para este dia.</p>`;
+  } else {
+    content.innerHTML = dayRes.map(r => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <span style="font-family:var(--mono);color:var(--gold-lt);font-size:13px">${r.code}</span>
+          <span class="badge badge-period">${r.period || '—'}</span>
+          <span class="badge ${r.status === 'Cancelada' ? 'badge-cancelled' : 'badge-confirmed'}">${r.status}</span>
+        </div>
+        <div style="font-size:13px;color:var(--cream)">${r.name} · ${r.guests} pessoas · ${r.time}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${r.unit}${r.area ? ' · ' + r.area : ''}</div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('dayModal').classList.add('open');
+}
+
+async function blockSelectedDay() {
+  if (!selectedDay) return;
+  const unit = currentUnit || 'BG';
+  closeModal('dayModal');
+  setLoading(true);
+  const r = await api({
+    action: 'adminBlockDate',
+    data: JSON.stringify({ unit, date: selectedDay.isoDate, period: '', reason: 'Bloqueado via calendário' }),
+  });
+  setLoading(false);
+  if (r.status === 'ok') {
+    showToast('Data bloqueada!', 'success');
+    loadAll();
+    loadBlocks();
+  } else {
+    showToast(r.message || 'Erro ao bloquear', 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  BLOCKS
+// ══════════════════════════════════════════════════════
+async function loadBlocks() {
+  setLoading(true);
+  const r = await api({ action: 'adminGetBlocks', unit: currentUnit });
+  setLoading(false);
+  window._blocks = r.blocks || [];
+  renderBlocks(window._blocks);
+}
+
+function renderBlocks(blocks) {
+  const el = document.getElementById('blocksList');
+  if (!blocks || blocks.length === 0) {
+    el.innerHTML = `<div class="empty-state"><span class="icon">✅</span><p>Nenhum bloqueio ativo</p></div>`;
+    return;
+  }
+  el.innerHTML = blocks.map(b => `
+    <div class="block-item">
+      <div class="block-info">
+        <div class="block-date">🔒 ${b.date} ${b.period ? '· ' + b.period : '· Dia todo'}</div>
+        <div class="block-detail">${b.unit}${b.spotId ? ' · ' + b.spotId : ''}${b.reason ? ' — ' + b.reason : ''}</div>
+      </div>
+      <button class="btn btn-danger" style="font-size:12px;padding:6px 14px"
+        onclick="removeBlock('${b.unit}', '${b.date}', '${b.period}')">Remover</button>
+    </div>
+  `).join('');
+}
+
+async function addBlock() {
+  const unit   = document.getElementById('blkUnit').value;
+  const date   = document.getElementById('blkDate').value;
+  const period = document.getElementById('blkPeriod').value;
+  const spotId = document.getElementById('blkSpot').value;
+  const reason = document.getElementById('blkReason').value.trim();
+
+  if (!date) { showToast('Selecione uma data', 'error'); return; }
+
+  setLoading(true);
+  const r = await api({
+    action: 'adminBlockDate',
+    data: JSON.stringify({ unit, date, period, spotId, reason }),
+  });
+  setLoading(false);
+
+  if (r.status === 'ok') {
+    showToast('Data bloqueada com sucesso!', 'success');
+    document.getElementById('blkDate').value   = '';
+    document.getElementById('blkReason').value = '';
+    loadBlocks();
+    loadAll();
+  } else {
+    showToast(r.message || 'Erro ao bloquear', 'error');
+  }
+}
+
+async function removeBlock(unit, date, period) {
+  setLoading(true);
+  const r = await api({ action: 'adminUnblockDate', unit, date, period });
+  setLoading(false);
+  if (r.status === 'ok') {
+    showToast('Bloqueio removido!', 'success');
+    loadBlocks();
+    loadAll();
+  } else {
+    showToast(r.message || 'Erro ao remover bloqueio', 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════
+function toISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatDatePtFromDate(d) {
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function setLoading(on) {
+  document.getElementById('loading').classList.toggle('show', on);
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ── Fecha modal ao clicar fora ────────────────────────
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('open'); });
+});
+
+// ── Init ─────────────────────────────────────────────
+document.getElementById('blkDate').min = toISO(new Date());
+loadAll();
+</script>
+</body>
+</html>
