@@ -852,7 +852,7 @@ async function addBlock() {
   if (!date) { showToast('Selecione uma data', 'error'); return; }
 
   // Salva no formato "tipo|motivo" para o servidor interpretar
-  const reasonFull = blkType + ' | ' + (reason || '');
+  const reasonFull = blkType + '|' + (reason || '');
 
   setLoading(true);
   const r = await api({
