@@ -880,8 +880,13 @@ function checkAvail() {
         S.guests = 0;
         inputEl.value = '';
         inputEl.placeholder = 'Esgotado';
+        if (d.blocked) {
+          const msg = d.blockType === 'casa_fechada'
+            ? `🔒 Casa fechada${d.blockReason ? ': ' + d.blockReason : ' nesta data'}`
+            : `⚠️ Reservas indisponíveis${d.blockReason ? ': ' + d.blockReason : ' nesta data'}`;
+           document.getElementById('avtext').textContent = msg;
+        }
       }
-
       const pct = Math.min(100, Math.round((taken / serverCap) * 100));
       document.getElementById('avb').style.display = 'block';
       const fill = document.getElementById('avfill');
