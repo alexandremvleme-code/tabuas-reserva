@@ -459,8 +459,15 @@ tbody td.mono { font-family: var(--mono); font-size: 12px; color: var(--gold-lt)
         </div>
         <div class="form-grid" style="margin-top:10px;grid-template-columns:1fr auto">
           <div class="form-group">
-            <label>Motivo</label>
-            <input type="text" id="blkReason" placeholder="Ex: evento privado, feriado, manutenção…">
+            <label>Tipo de bloqueio</label>
+              <select id="blkType">
+              <option value="sem_reservas">Sem reservas (casa aberta)</option>
+              <option value="casa_fechada">Casa fechada ao público</option>
+              </select>
+          </div>
+           <div class="form-group">
+              <label>Motivo (visível ao cliente)</label>
+              <input type="text" id="blkReason" placeholder="Ex: Evento corporativo, feriado…">
           </div>
           <div class="form-group">
             <label>&nbsp;</label>
@@ -834,13 +841,15 @@ async function addBlock() {
   const period = document.getElementById('blkPeriod').value;
   const spotId = document.getElementById('blkSpot').value;
   const reason = document.getElementById('blkReason').value.trim();
+  const blkType = document.getElementById('blkType').value;
+  const reasonFull = blkType + '|' + reason;
 
   if (!date) { showToast('Selecione uma data', 'error'); return; }
 
   setLoading(true);
   const r = await api({
     action: 'adminBlockDate',
-    data: JSON.stringify({ unit, date, period, spotId, reason }),
+    data: JSON.stringify({ unit, date, period, spotId, reasonFull }),
   });
   setLoading(false);
 
