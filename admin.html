@@ -30,6 +30,23 @@
     ">Entrar</button>
   </div>
 </div>
+<script>
+const ADMIN_PASSWORD = 'tabuas2024'; // 🔧 troque pela senha
+
+function doLogin() {
+  const val = document.getElementById('loginInput').value;
+  if (val === ADMIN_PASSWORD) {
+    document.getElementById('loginScreen').style.display = 'none';
+    sessionStorage.setItem('adminAuth', '1');
+    // loadAll() será chamado pelo script principal
+    if (typeof loadAll === 'function') loadAll();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginInput').value = '';
+    document.getElementById('loginInput').focus();
+  }
+}
+</script>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -970,7 +987,9 @@ document.querySelectorAll('.modal-bg').forEach(bg => {
 
 // ── Init ─────────────────────────────────────────────
 document.getElementById('blkDate').min = toISO(new Date());
-loadAll();
+if (sessionStorage.getItem('adminAuth') === '1') {
+  document.getElementById('loginScreen').style.display = 'none';
+  loadAll();
 </script>
 </body>
 </html>
