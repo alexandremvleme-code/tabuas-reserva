@@ -849,7 +849,7 @@ async function addBlock() {
   setLoading(true);
   const r = await api({
     action: 'adminBlockDate',
-    data: JSON.stringify({ unit, date, period, spotId, reasonFull }),
+    data: JSON.stringify({ unit, date, period, spotId, reason: reasonFull }),
   });
   setLoading(false);
 
