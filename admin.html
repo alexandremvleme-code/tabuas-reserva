@@ -842,9 +842,11 @@ async function addBlock() {
   const spotId = document.getElementById('blkSpot').value;
   const reason = document.getElementById('blkReason').value.trim();
   const blkType = document.getElementById('blkType').value;
-  const reasonFull = blkType + '|' + reason;
 
   if (!date) { showToast('Selecione uma data', 'error'); return; }
+
+  // Salva no formato "tipo|motivo" para o servidor interpretar
+  const reasonFull = blkType + '|' + (reason || '');
 
   setLoading(true);
   const r = await api({
