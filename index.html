@@ -880,12 +880,6 @@ function checkAvail() {
         S.guests = 0;
         inputEl.value = '';
         inputEl.placeholder = 'Esgotado';
-        if (d.blocked) {
-          const msg = d.blockType === 'casa_fechada'
-            ? `🔒 Casa fechada${d.blockReason ? ': ' + d.blockReason : ' nesta data'}`
-            : `⚠️ Reservas indisponíveis${d.blockReason ? ': ' + d.blockReason : ' nesta data'}`;
-           document.getElementById('avtext').textContent = msg;
-        }
       }
       const pct = Math.min(100, Math.round((taken / serverCap) * 100));
       document.getElementById('avb').style.display = 'block';
@@ -901,6 +895,12 @@ function checkAvail() {
         : available === 1 ? '🔴 Última vaga disponível!'
         : available <= 10 ? `🟡 Apenas ${available} lugares disponíveis`
         : `🟢 ${available} lugares disponíveis`;
+      if (d.blocked) {
+          const msg = d.blockType === 'casa_fechada'
+            ? `🔒 Casa fechada${d.blockReason ? ': ' + d.blockReason : ' nesta data'}`
+            : `⚠️ Reservas indisponíveis${d.blockReason ? ': ' + d.blockReason : ' nesta data'}`;
+          document.getElementById('avtext').textContent = msg;
+      }
     } catch(e) {
       console.warn('checkAvail error:', e);
       // Se a API falhou, define um cap de fallback para não bloquear o fluxo
