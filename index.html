@@ -867,7 +867,7 @@ function checkAvail() {
       hideAl('al2');
       const u = UNITS[S.unit];
       const taken = d.count || 0;
-      const serverCap = d.max || u.cap;
+      const serverCap = (d.max !== null && d.max !== undefined) ? d.max : u.cap;
       const available = Math.max(0, serverCap - taken);
       S.availCap = available;
 
