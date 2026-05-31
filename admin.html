@@ -1,5 +1,35 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+<!-- Tela de login -->
+<div id="loginScreen" style="
+  position:fixed;inset:0;background:#0b0907;display:flex;
+  align-items:center;justify-content:center;z-index:9999;
+">
+  <div style="
+    background:#191410;border:1px solid rgba(212,136,58,.25);
+    border-radius:6px;padding:40px;width:360px;text-align:center;
+  ">
+    <div style="font-family:'Playfair Display',serif;font-size:22px;
+                color:#F0A94E;margin-bottom:4px">Tábuas Cervejaria</div>
+    <div style="font-size:10px;letter-spacing:.25em;text-transform:uppercase;
+                color:#7a6e60;margin-bottom:28px">painel administrativo</div>
+    <input id="loginInput" type="password" placeholder="Senha de acesso"
+      style="width:100%;background:#131009;border:1px solid rgba(212,136,58,.2);
+             color:#ede5d4;padding:10px 14px;border-radius:4px;font-size:14px;
+             outline:none;margin-bottom:12px;font-family:'DM Sans',sans-serif"
+      onkeydown="if(event.key==='Enter') doLogin()"
+    >
+    <div id="loginError" style="color:#c95555;font-size:12px;
+                                 margin-bottom:10px;display:none">
+      Senha incorreta.
+    </div>
+    <button onclick="doLogin()" style="
+      width:100%;background:#D4883A;color:#0b0907;border:none;
+      padding:10px;border-radius:4px;font-size:14px;font-weight:600;
+      cursor:pointer;font-family:'DM Sans',sans-serif;
+    ">Entrar</button>
+  </div>
+</div>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -534,7 +564,33 @@ function showPanel(id) {
 
 function onUnitChange() {
   currentUnit = document.getElementById('unitSelect').value;
+  // ── Login simples ─────────────────────────────────────
+const ADMIN_PASSWORD = 'tabuas2024'; // 🔧 troque pela senha que quiser
+
+function doLogin() {
+  const val = document.getElementById('loginInput').value;
+  if (val === ADMIN_PASSWORD) {
+    document.getElementById('loginScreen').style.display = 'none';
+    sessionStorage.setItem('adminAuth', '1');
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginInput').value = '';
+    document.getElementById('loginInput').focus();
+  }
+}
+
+// Verifica se já autenticou nesta sessão
+if (sessionStorage.getItem('adminAuth') !== '1') {
+  // Bloqueia o loadAll até fazer login
+} else {
+  document.getElementById('loginScreen').style.display = 'none';
+}
+  if (sessionStorage.getItem('adminAuth') === '1') {
+  document.getElementById('loginScreen').style.display = 'none';
   loadAll();
+} else {
+  // aguarda o login — loadAll() é chamado pelo doLogin()
+}
 }
 
 // ══════════════════════════════════════════════════════
