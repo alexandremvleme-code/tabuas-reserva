@@ -319,7 +319,7 @@ tbody td.mono { font-family:var(--mono); font-size:12px; color:var(--gold-lt); }
         <table>
           <thead><tr>
             <th>Código</th><th>Unidade</th><th>Área</th>
-            <th>Período</th><th>Chegada</th><th>Pessoas</th><th>Nome</th><th>Status</th>
+            <th>Período</th><th>Chegada</th><th>Pessoas</th><th>Nome</th><th>Status</th><th></th>
           </tr></thead>
           <tbody id="todayTable"><tr><td colspan="8" style="text-align:center;padding:28px;color:var(--muted)">Carregando…</td></tr></tbody>
         </table>
@@ -446,8 +446,8 @@ tbody td.mono { font-family:var(--mono); font-size:12px; color:var(--gold-lt); }
 // ══════════════════════════════════════════════════════
 //  CONFIG — altere aqui
 // ══════════════════════════════════════════════════════
-const API_URL       = 'https://script.google.com/macros/s/AKfycby7zZHMEE_hZbLtVUe6lGypIbGGVpecw6L76I_2PHshaIFdM6UGZ1AMOpvU5Cf3uq0VPQ/exec';
-const ADMIN_PASSWORD = 'tabuas2016'; // 🔧 troque pela senha desejada
+const API_URL       = 'https://script.google.com/macros/s/SEU_DEPLOYMENT_ID/exec';
+const ADMIN_PASSWORD = 'tabuas2024'; // 🔧 troque pela senha desejada
 
 // ══════════════════════════════════════════════════════
 //  LOGIN
@@ -500,7 +500,7 @@ function showPanel(id) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   document.getElementById('nav-'   + id).classList.add('active');
-  if (id === 'calendar')     renderCalendar();
+  if (id === 'calendar')     { loadBlocks().then(() => renderCalendar()); }
   if (id === 'reservations') renderResTable();
   if (id === 'blocks')       loadBlocks();
 }
@@ -533,6 +533,24 @@ async function loadAll() {
 }
 
 // ══════════════════════════════════════════════════════
+//  HELPERS — formata horário vindo como objeto Date ou string
+// ══════════════════════════════════════════════════════
+function fmtTime(val) {
+  if (!val) return '—';
+  const s = String(val).trim();
+  // Já está no formato HH:MM
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+  // Objeto Date serializado (ex: "Sat Dec 30 1899 16:00:00 GMT...")
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+  } catch(e) {}
+  return s;
+}
+
+// ══════════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════════
 function renderDashboard() {
@@ -558,7 +576,7 @@ function renderDashboard() {
   const tbody    = document.getElementById('todayTable');
 
   if (todayRes.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><span class="icon">🍺</span><p>Nenhuma reserva para hoje</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><span class="icon">🍺</span><p>Nenhuma reserva para hoje</p></div></td></tr>`;
     return;
   }
   tbody.innerHTML = todayRes.map(r => `
@@ -567,10 +585,11 @@ function renderDashboard() {
       <td>${r.unit}</td>
       <td>${r.area || '—'}</td>
       <td><span class="badge badge-period">${r.period || '—'}</span></td>
-      <td style="font-family:var(--mono)">${r.time}</td>
+      <td style="font-family:var(--mono)">${fmtTime(r.time)}</td>
       <td style="font-weight:500;color:var(--gold-lt)">${r.guests}</td>
       <td>${r.name}</td>
       <td><span class="badge ${r.status==='Cancelada'?'badge-cancelled':'badge-confirmed'}">${r.status}</span></td>
+      <td>${r.status!=='Cancelada'?`<button class="btn-icon" title="Cancelar" onclick="openCancelModal('${r.code}')">✕</button>`:''}</td>
     </tr>`).join('');
 }
 
@@ -588,7 +607,7 @@ function renderResTable(data) {
     <tr>
       <td class="mono">${r.code}</td>
       <td style="font-family:var(--mono);font-size:12px">${r.date}</td>
-      <td style="font-family:var(--mono)">${r.time}</td>
+      <td style="font-family:var(--mono)">${fmtTime(r.time)}</td>
       <td>${r.unit}</td>
       <td style="color:var(--muted);font-size:12px">${r.area || '—'}</td>
       <td><span class="badge badge-period">${r.period || '—'}</span></td>
@@ -647,7 +666,6 @@ function renderCalendar() {
   const firstDay   = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth= new Date(calYear, calMonth+1, 0).getDate();
   const todayKey   = formatDatePtFromDate(new Date());
-  const byDate     = (statsData && statsData.byDate) ? statsData.byDate : {};
   const blocks     = window._blocks || [];
 
   let cells = '';
@@ -656,25 +674,53 @@ function renderCalendar() {
     const pd = new Date(py,pm+1,0).getDate() - firstDay + i + 1;
     cells += `<div class="cal-day other-month"><div class="cal-day-num">${pd}</div></div>`;
   }
+
   for (let d = 1; d <= daysInMonth; d++) {
     const dateObj = new Date(calYear, calMonth, d);
     const dateKey = formatDatePtFromDate(dateObj);
     const isToday = dateKey === todayKey;
-    const isPast  = dateObj < new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-    const dayData = byDate[dateKey];
+
+    // Reservas do dia
+    const dayRes = allReservations.filter(r => r.date === dateKey && r.status !== 'Cancelada');
     let pills = '';
-    if (dayData) {
-      for (const [period, guests] of Object.entries(dayData)) {
-        pills += `<span class="cal-res-pill">${period}: ${guests} pax</span>`;
-      }
+
+    // Agrupa por unidade+período para resumo
+    const groups = {};
+    dayRes.forEach(r => {
+      const key = r.unit + (r.period ? ' · ' + r.period : '');
+      if (!groups[key]) groups[key] = { guests: 0, times: [] };
+      groups[key].guests += r.guests;
+      const t = fmtTime(r.time);
+      if (t !== '—' && !groups[key].times.includes(t)) groups[key].times.push(t);
+    });
+
+    for (const [label, info] of Object.entries(groups)) {
+      const timesStr = info.times.sort().join(', ');
+      pills += `<span class="cal-res-pill" title="${label}${timesStr?' · '+timesStr:''}">
+        ${label} · ${info.guests}pax${timesStr?' · '+timesStr:''}
+      </span>`;
     }
-    const isBlocked = blocks.some(b => b.date === dateKey);
-    if (isBlocked) pills += `<span class="cal-res-pill blocked-pill">🔒 Bloqueado</span>`;
+
+    // Bloqueios do dia
+    const dayBlocks = blocks.filter(b => b.date === dateKey);
+    dayBlocks.forEach(b => {
+      const parts  = (b.reason||'').split('|');
+      const tipo   = parts.length > 1 ? parts[0].trim() : 'sem_reservas';
+      const motivo = parts.length > 1 ? parts[1].trim() : b.reason;
+      const icon   = tipo === 'casa_fechada' ? '🔒' : '⚠️';
+      const label  = (motivo || (tipo==='casa_fechada' ? 'Casa fechada' : 'Sem reservas'));
+      pills += `<span class="cal-res-pill blocked-pill" title="${b.unit}${b.period?' · '+b.period:''} — ${label}">
+        ${icon} ${label}
+      </span>`;
+    });
+
+    const isBlocked = dayBlocks.length > 0;
     const cls = ['cal-day', isToday?'today':'', isBlocked?'blocked':''].filter(Boolean).join(' ');
     const iso = calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     cells += `<div class="${cls}" onclick="openDayModal('${iso}','${dateKey}')">
       <div class="cal-day-num">${d}</div>${pills}</div>`;
   }
+
   const rem = (firstDay+daysInMonth)%7===0 ? 0 : 7-((firstDay+daysInMonth)%7);
   for (let i = 1; i <= rem; i++) {
     cells += `<div class="cal-day other-month"><div class="cal-day-num">${i}</div></div>`;
@@ -700,8 +746,9 @@ function openDayModal(isoDate, datePt) {
           <span style="font-family:var(--mono);color:var(--gold-lt);font-size:13px">${r.code}</span>
           <span class="badge badge-period">${r.period||'—'}</span>
           <span class="badge ${r.status==='Cancelada'?'badge-cancelled':'badge-confirmed'}">${r.status}</span>
+          ${r.status!=='Cancelada'?`<button class="btn-icon" style="margin-left:auto" title="Cancelar" onclick="closeModal('dayModal');openCancelModal('${r.code}')">✕ Cancelar</button>`:''}
         </div>
-        <div style="font-size:13px;color:var(--cream)">${r.name} · ${r.guests} pessoas · ${r.time}</div>
+        <div style="font-size:13px;color:var(--cream)">${r.name} · ${r.guests} pessoas · ${fmtTime(r.time)}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">${r.unit}${r.area?' · '+r.area:''}</div>
       </div>`).join('');
   }
@@ -731,6 +778,7 @@ async function loadBlocks() {
   setLoading(false);
   window._blocks = r.blocks || [];
   renderBlocks(window._blocks);
+  return window._blocks;
 }
 
 function renderBlocks(blocks) {
