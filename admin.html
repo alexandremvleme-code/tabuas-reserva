@@ -245,7 +245,7 @@ tbody td.mono { font-family:var(--mono); font-size:12px; color:var(--gold-lt); }
     <div id="dayModalContent" style="margin-top:12px;max-height:60vh;overflow-y:auto"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('dayModal')">Fechar</button>
-      <button class="btn btn-danger" onclick="blockSelectedDay()">Bloquear este dia</button>
+      <button class="btn btn-danger" onclick="goToBlockWithDate()">🔒 Bloquear este dia</button>
     </div>
   </div>
 </div>
@@ -500,7 +500,7 @@ function showPanel(id) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   document.getElementById('nav-'   + id).classList.add('active');
-  if (id === 'calendar')     { loadBlocks().then(() => renderCalendar()); }
+  if (id === 'calendar')     renderCalendar();
   if (id === 'reservations') renderResTable();
   if (id === 'blocks')       loadBlocks();
 }
@@ -520,13 +520,15 @@ async function loadAll() {
   const from   = toISO(today);
   const to     = toISO(future);
 
-  const [resResult, statsResult] = await Promise.all([
+  const [resResult, statsResult, blocksResult] = await Promise.all([
     api({ action:'adminGetReservations', unit:currentUnit, from, to }),
     api({ action:'adminGetStats',        unit:currentUnit }),
+    api({ action:'adminGetBlocks',       unit:currentUnit }),
   ]);
 
   if (resResult.reservations) allReservations = resResult.reservations;
   if (statsResult.stats)      statsData       = statsResult.stats;
+  if (blocksResult.blocks)    window._blocks  = blocksResult.blocks;
 
   renderDashboard();
   setLoading(false);
@@ -755,18 +757,19 @@ function openDayModal(isoDate, datePt) {
   document.getElementById('dayModal').classList.add('open');
 }
 
-async function blockSelectedDay() {
-  if (!selectedDay) return;
-  const unit = currentUnit || 'BG';
+// Navega para a aba Bloqueios com a data do dia clicado já preenchida
+function goToBlockWithDate() {
   closeModal('dayModal');
-  setLoading(true);
-  const r = await api({
-    action:'adminBlockDate',
-    data: JSON.stringify({ unit, date:selectedDay.isoDate, period:'', reason:'sem_reservas|Bloqueado via calendário' }),
-  });
-  setLoading(false);
-  if (r.status==='ok') { showToast('Data bloqueada!','success'); loadAll(); loadBlocks(); }
-  else showToast(r.message||'Erro ao bloquear','error');
+  if (selectedDay) {
+    showPanel('blocks');
+    document.getElementById('blkDate').value = selectedDay.isoDate;
+    // Preenche unidade se uma estiver selecionada
+    if (currentUnit) {
+      document.getElementById('blkUnit').value = currentUnit;
+    }
+    // Rola até o formulário
+    document.getElementById('blkDate').focus();
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -825,7 +828,8 @@ async function addBlock() {
     showToast('Data bloqueada com sucesso!','success');
     document.getElementById('blkDate').value   = '';
     document.getElementById('blkReason').value = '';
-    loadBlocks(); loadAll();
+    await loadAll();
+    renderBlocks(window._blocks || []);
   } else showToast(r.message||'Erro ao bloquear','error');
 }
 
@@ -833,8 +837,11 @@ async function removeBlock(unit, date, period) {
   setLoading(true);
   const r = await api({ action:'adminUnblockDate', unit, date, period });
   setLoading(false);
-  if (r.status==='ok') { showToast('Bloqueio removido!','success'); loadBlocks(); loadAll(); }
-  else showToast(r.message||'Erro ao remover','error');
+  if (r.status==='ok') {
+    showToast('Bloqueio removido!','success');
+    await loadAll();
+    renderBlocks(window._blocks || []);
+  } else showToast(r.message||'Erro ao remover','error');
 }
 
 // ══════════════════════════════════════════════════════
