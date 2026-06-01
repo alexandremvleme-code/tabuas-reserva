@@ -507,7 +507,13 @@ function showPanel(id) {
 
 function onUnitChange() {
   currentUnit = document.getElementById('unitSelect').value;
-  loadAll();
+  loadAll().then(() => {
+    // Re-renderiza o painel ativo
+    const activePanel = document.querySelector('.panel.active');
+    if (activePanel && activePanel.id === 'panel-calendar') renderCalendar();
+    if (activePanel && activePanel.id === 'panel-reservations') renderResTable();
+    if (activePanel && activePanel.id === 'panel-blocks') renderBlocks(window._blocks || []);
+  });
 }
 
 // ══════════════════════════════════════════════════════
